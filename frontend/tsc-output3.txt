@@ -1,0 +1,1 @@
+components/navbar/Navbar.tsx(16,8): error TS17008: JSX element 'div' has no corresponding closing tag.
