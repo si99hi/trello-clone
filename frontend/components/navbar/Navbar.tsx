@@ -7,19 +7,22 @@ import Avatar from '../ui/Avatar';
 import SearchBar from '../filters/SearchBar';
 import { Grid, ChevronDown, Bell, HelpCircle } from 'lucide-react';
 
-export default function Navbar() {
+interface NavbarProps {
+  onCreateClick?: () => void;
+}
+
+export default function Navbar({ onCreateClick }: NavbarProps) {
   const router = useRouter();
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   return (
     <nav className="bg-trello-nav h-12 flex items-center px-3 justify-between text-trello-text-primary border-b border-gray-700/50 text-sm font-medium sticky top-0 z-50">
       <div className="flex items-center h-full">
         {/* Main Logo Area */}
-        <div className="flex items-center hover:bg-white/10 px-2 rounded h-8 cursor-pointer transition-colors mr-1">
-           <Grid className="w-5 h-5 mr-1 opacity-80" />
-        </div>
+        <button className="flex items-center justify-center hover:bg-white/10 p-1.5 rounded h-8 cursor-pointer transition-colors mr-1">
+           <Grid className="w-5 h-5 opacity-80" />
+        </button>
         
-        <Link href="/" className="flex items-center hover:bg-white/10 px-2 rounded h-8 transition-colors mr-2">
+        <Link href="/" className="flex items-center hover:bg-white/10 px-2 rounded h-8 transition-colors mr-4">
            <div className="flex items-center text-trello-text-primary text-lg font-bold">
              <TrelloIcon className="w-5 h-5 mr-1 text-trello-blue" />
              Taskflow
@@ -33,27 +36,14 @@ export default function Navbar() {
             <NavButton text="Starred" hasDropdown />
             <NavButton text="Templates" hasDropdown />
             
-            <div className="relative ml-2 flex items-center h-full">
+            <div className="ml-2 flex items-center h-full">
               <button
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
+                onClick={onCreateClick}
                 className="bg-trello-blue hover:bg-trello-blue-hover text-trello-bg px-3 h-8 rounded text-[14px] font-semibold transition-colors flex items-center"
               >
                 Create
               </button>
-          {showCreateMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-trello-modal rounded shadow-lg py-1 z-50">
-              <button
-                onClick={() => {
-                  setShowCreateMenu(false);
-                  router.push('/?createBoard=true');
-                }}
-                className="block w-full text-left px-4 py-2 text-sm hover:bg-white/10 text-trello-text-primary"
-              >
-                Create board
-              </button>
             </div>
-          )}
-        </div>
         </div>
       </div>
 
@@ -68,9 +58,9 @@ export default function Navbar() {
            <IconButton Icon={HelpCircle} />
         </div>
         
-        <div className="ml-1 cursor-pointer hover:ring-2 ring-transparent ring-offset-1 hover:ring-trello-text-primary rounded-full transition-all">
-          <Avatar name="Alice" color="#FF5733" size="sm" />
-        </div>
+        <button className="ml-1 cursor-pointer hover:ring-2 ring-transparent ring-offset-1 ring-offset-trello-nav hover:ring-trello-text-primary rounded-full transition-all">
+          <Avatar name="User" color="#FF5733" size="sm" />
+        </button>
       </div>
     </nav>
   );
@@ -78,11 +68,33 @@ export default function Navbar() {
 
 // Helpers for the Navbar
 function NavButton({ text, hasDropdown }: { text: string, hasDropdown?: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <button className="flex items-center hover:bg-white/10 px-3 h-8 rounded transition-colors text-trello-text-primary">
-       {text}
-       {hasDropdown && <ChevronDown className="w-4 h-4 ml-1 opacity-70" />}
-    </button>
+    <div className="relative h-full flex items-center">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        className={`flex items-center px-3 h-8 rounded transition-colors text-trello-text-primary ${isOpen ? 'bg-white/10 text-trello-blue' : 'hover:bg-white/10'}`}
+      >
+         {text}
+         {hasDropdown && <ChevronDown className={`w-4 h-4 ml-1 opacity-70 transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
+      </button>
+
+      {isOpen && hasDropdown && (
+        <div className="absolute top-11 left-0 w-64 bg-trello-modal rounded shadow-xl py-2 z-50 border border-trello-card">
+          <div className="px-4 py-2 text-xs font-semibold text-trello-text-secondary uppercase">
+             {text}
+          </div>
+          <div className="px-4 py-2 text-sm text-trello-text-primary hover:bg-white/10 cursor-pointer">
+             Fake {text} Item 1
+          </div>
+          <div className="px-4 py-2 text-sm text-trello-text-primary hover:bg-white/10 cursor-pointer">
+             Fake {text} Item 2
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

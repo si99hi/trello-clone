@@ -168,4 +168,9 @@ export const api = {
   // Users & Labels
   getUsers: () => fetchApi<User[]>('/users'),
   getLabels: () => fetchApi<Label[]>('/labels'),
+
+  // Auth
+  checkEmail: (email: string) => fetchApi<{ exists: boolean, message?: string }>('/auth/check-email', { method: 'POST', body: JSON.stringify({ email }) }),
+  signup: (data: any) => fetchApi<{ user: User, token: string }>('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
+  login: (data: any) => fetchApi<{ user: User, token: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
 };

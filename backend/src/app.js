@@ -15,7 +15,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const authRouter = require('./routes/auth');
+
 // Routes
+app.use('/api/auth', authRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/lists', listsRouter);
 app.use('/api/cards', cardsRouter);
