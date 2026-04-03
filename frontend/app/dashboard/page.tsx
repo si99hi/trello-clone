@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { api, Board } from '@/lib/api';
+import { BOARD_TEMPLATES, TEMPLATE_CATEGORIES, TemplateId } from '@/lib/templates';
 import Navbar from '@/components/navbar/Navbar';
 import BoardCard from '@/components/board/BoardCard';
 import CreateBoardModal from '@/components/board/CreateBoardModal';
@@ -13,6 +15,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [templateCategory, setTemplateCategory] = useState<(typeof TEMPLATE_CATEGORIES)[number]>('Education');
   const router = useRouter();
 
   useEffect(() => {
@@ -49,6 +52,44 @@ export default function HomePage() {
     }
   };
 
+  const handleCreateTemplate = async (templateId: TemplateId) => {
+    try {
+      const templateConfig = BOARD_TEMPLATES.find((t) => t.id === templateId);
+      if (!templateConfig) {
+        throw new Error('Template not found');
+      }
+
+      const newBoard = await api.createBoard({
+        title: templateConfig.title,
+        bgColor: templateConfig.bgColor,
+        bgImage: templateConfig.image,
+      });
+
+      for (let i = 0; i < templateConfig.lists.length; i += 1) {
+        const listData = templateConfig.lists[i];
+        const createdList = await api.createList({
+          boardId: newBoard.id,
+          title: listData.title,
+          position: i,
+        });
+
+        for (let j = 0; j < listData.cards.length; j += 1) {
+          await api.createCard({
+            listId: createdList.id,
+            title: listData.cards[j],
+            position: j,
+          });
+        }
+      }
+
+      await fetchBoards();
+      router.push(`/boards/${newBoard.id}`);
+    } catch (err) {
+      console.error('Failed to create template board:', err);
+      alert('Failed to create template. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-trello-bg flex flex-col">
       <Navbar onCreateClick={() => setShowCreateModal(true)} />
@@ -60,7 +101,10 @@ export default function HomePage() {
                 <button className="w-full flex items-center px-3 py-2 text-sm font-semibold bg-trello-blue/10 text-trello-blue rounded-lg transition-colors">
                     <Trello className="w-4 h-4 mr-3" /> Boards
                 </button>
-                <button className="w-full flex items-center px-3 py-2 text-sm font-medium text-trello-text-primary hover:bg-white/5 rounded-lg transition-colors">
+                <button
+                    onClick={() => router.push('/templates')}
+                    className="w-full flex items-center px-3 py-2 text-sm font-medium text-trello-text-primary hover:bg-white/5 rounded-lg transition-colors"
+                >
                     <LayoutDashboard className="w-4 h-4 mr-3" /> Templates
                 </button>
                 <button className="w-full flex items-center px-3 py-2 text-sm font-medium text-trello-text-primary hover:bg-white/5 rounded-lg transition-colors">
@@ -111,6 +155,51 @@ export default function HomePage() {
                     </div>
                  </section>
               )}
+
+              <section className="mb-10 border-y border-gray-700/50 py-6">
+                <div className="flex items-center justify-between gap-4 mb-3">
+                  <h2 className="text-3xl font-bold text-trello-text-primary">Trello Workspace</h2>
+                  <span className="text-xs text-trello-text-secondary">Private</span>
+                </div>
+                <div className="mt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                    <h3 className="text-2xl font-bold text-trello-text-primary">Suggested {templateCategory.toLowerCase()} templates</h3>
+                    <select
+                      value={templateCategory}
+                      onChange={(e) => setTemplateCategory(e.target.value as (typeof TEMPLATE_CATEGORIES)[number])}
+                      className="bg-trello-card border border-gray-600 rounded px-3 py-2 text-sm text-trello-text-primary"
+                    >
+                      {TEMPLATE_CATEGORIES.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-sm text-trello-text-secondary mb-4">
+                    Get going faster with a template from the Trello community.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {BOARD_TEMPLATES.filter((t) => t.category === templateCategory).slice(0, 4).map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleCreateTemplate(template.id)}
+                        className="text-left bg-trello-card rounded-lg border border-gray-700/50 overflow-hidden hover:border-trello-blue transition-colors"
+                      >
+                        <div className="relative h-20">
+                          <Image src={template.image} alt={template.title} fill className="object-cover" unoptimized />
+                          <span className="absolute right-2 bottom-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 text-[#172B4D]">TEMPLATE</span>
+                        </div>
+                        <div className="p-2.5 text-sm font-semibold text-trello-text-primary">{template.title}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => router.push('/templates')}
+                    className="mt-4 text-sm text-trello-blue underline underline-offset-2 hover:text-blue-300"
+                  >
+                    Browse the full template gallery
+                  </button>
+                </div>
+              </section>
 
               {/* Your Workspaces */}
               <section>

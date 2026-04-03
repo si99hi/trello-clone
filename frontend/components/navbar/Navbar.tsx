@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Avatar from '../ui/Avatar';
 import SearchBar from '../filters/SearchBar';
 import { Grid, ChevronDown, Bell, HelpCircle } from 'lucide-react';
@@ -12,8 +11,6 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onCreateClick }: NavbarProps) {
-  const router = useRouter();
-
   return (
     <nav className="bg-trello-nav h-12 flex items-center px-3 justify-between text-trello-text-primary border-b border-gray-700/50 text-sm font-medium sticky top-0 z-50">
       <div className="flex items-center h-full">
@@ -22,7 +19,7 @@ export default function Navbar({ onCreateClick }: NavbarProps) {
            <Grid className="w-5 h-5 opacity-80" />
         </button>
         
-        <Link href="/" className="flex items-center hover:bg-white/10 px-2 rounded h-8 transition-colors mr-4">
+        <Link href="/dashboard" className="flex items-center hover:bg-white/10 px-2 rounded h-8 transition-colors mr-4">
            <div className="flex items-center text-trello-text-primary text-lg font-bold">
              <TrelloIcon className="w-5 h-5 mr-1 text-trello-blue" />
              Taskflow
@@ -34,7 +31,9 @@ export default function Navbar({ onCreateClick }: NavbarProps) {
             <NavButton text="Workspaces" hasDropdown />
             <NavButton text="Recent" hasDropdown />
             <NavButton text="Starred" hasDropdown />
-            <NavButton text="Templates" hasDropdown />
+            <Link href="/templates" className="flex items-center px-3 h-8 rounded hover:bg-white/10 transition-colors text-trello-text-primary">
+              Templates
+            </Link>
             
             <div className="ml-2 flex items-center h-full">
               <button
@@ -67,7 +66,13 @@ export default function Navbar({ onCreateClick }: NavbarProps) {
 }
 
 // Helpers for the Navbar
-function NavButton({ text, hasDropdown }: { text: string, hasDropdown?: boolean }) {
+function NavButton({
+  text,
+  hasDropdown
+}: {
+  text: string,
+  hasDropdown?: boolean
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
