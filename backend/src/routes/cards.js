@@ -1,110 +1,96 @@
 const express = require('express');
-const prisma = require('../lib/prisma');
 const router = express.Router();
+const prisma = require('../lib/prisma');
 
-// Helper to create activity entry
-async function createActivity(cardId, userId, action) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  const text = `${user.name} ${action}`;
-  return prisma.activity.create({
-    data: {
-      text,
-      cardId,
-    }
-  });
-}
+// Default user ID for activities and comments
+const DEFAULT_USER_ID = 1;
 
-// POST /api/cards - create a card
-router.post('/', async (req, res) => {
+// Helper function to create an activity
+async function createActivity(cardId, text) {
   try {
-    const { listId, title, position } = req.body;
-    if (!listId || !title) {
-      return res.status(400).json({ error: 'listId and title are required' });
-    }
-    const card = await prisma.card.create({
+    await prisma.activity.create({
       data: {
-        listId: parseInt(listId),
-        title,
-        position: position || 0
-      },
-      include: {
-        labels: { include: { label: true } },
-        members: { include: { user: true } },
-        checklists: { include: { items: true } },
-        comments: { include: { user: true } },
-        attachments: true,
-        activities: true
+        text,
+        cardId: parseInt(cardId, 10)
       }
     });
+  } catch (error) {
+    console.error('Error creating activity:', error);
+  }
+}
 
-    // Create activity
-    await createActivity(card.id, 1, 'added this card'); // hardcoded Alice as current user
+// POST /api/cards - create card { listId, title, position }
+router.post('/', async (req, res) => {
+  const { listId, title, position } = req.body;
+  
+  if (!listId || !title || typeof position !== 'number') {
+    return res.status(400).json({ error: 'listId, title, and position are required' });
+  }
 
+  try {
+    const card = await prisma.card.create({
+      data: {
+        title,
+        position,
+        listId: parseInt(listId, 10),
+      },
+    });
+
+    await createActivity(card.id, `added this card to the list`);
+    
     res.status(201).json(card);
   } catch (error) {
-    console.error(error);
+    console.error('Error creating card:', error);
     res.status(500).json({ error: 'Failed to create card' });
   }
 });
 
-// PATCH /api/cards/:id - update card
+// PATCH /api/cards/:id - update any card field
 router.patch('/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { title, description, listId, position, dueDate, isArchived, coverColor, coverImage } = req.body;
+  const { id } = req.params;
+  const cardId = parseInt(id, 10);
+  const updateData = req.body;
 
-    // Fetch old card to detect changes for activity
-    const oldCard = await prisma.card.findUnique({ where: { id } });
-    if (!oldCard) {
+  try {
+    const originalCard = await prisma.card.findUnique({ where: { id: cardId } });
+    if (!originalCard) {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    const data = {};
-    if (title !== undefined) data.title = title;
-    if (description !== undefined) data.description = description;
-    if (listId !== undefined) data.listId = parseInt(listId);
-    if (position !== undefined) data.position = position;
-    if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null;
-    if (isArchived !== undefined) data.isArchived = isArchived;
-    if (coverColor !== undefined) data.coverColor = coverColor;
-    if (coverImage !== undefined) data.coverImage = coverImage;
-
     const card = await prisma.card.update({
-      where: { id },
-      data,
-      include: {
-        labels: { include: { label: true } },
-        members: { include: { user: true } },
-        checklists: { include: { items: true } },
-        comments: { include: { user: true } },
-        attachments: true,
-        activities: true
-      }
+      where: { id: cardId },
+      data: updateData,
     });
 
-    // Create activity for significant changes
-    const userId = 1; // Alice
-    if (listId !== undefined && listId !== oldCard.listId) {
-      const newList = await prisma.list.findUnique({ where: { id: listId } });
-      await createActivity(id, userId, `moved this card to ${newList.title}`);
+    // Generate Activity Records based on changes
+    if (updateData.listId && updateData.listId !== originalCard.listId) {
+      // It's tricky to get list names here without extra queries, so keeping it general
+      await createActivity(card.id, `moved this card`);
     }
-    if (dueDate !== undefined) {
-      if (dueDate) {
-        await createActivity(id, userId, `set due date to ${new Date(dueDate).toLocaleDateString()}`);
+    if (updateData.dueDate !== undefined && updateData.dueDate !== originalCard.dueDate) {
+      if (updateData.dueDate) {
+        await createActivity(card.id, `set the due date to ${new Date(updateData.dueDate).toLocaleDateString()}`);
       } else {
-        await createActivity(id, userId, `removed due date`);
+        await createActivity(card.id, `removed the due date`);
       }
     }
-    if (isArchived !== undefined && isArchived === true) {
-      await createActivity(id, userId, `archived this card`);
+    if (updateData.isArchived !== undefined && updateData.isArchived !== originalCard.isArchived) {
+      await createActivity(card.id, updateData.isArchived ? `archived this card` : `sent this card to the board`);
     }
-    if (coverColor !== undefined) {
-      await createActivity(id, userId, `changed cover`);
+    if (updateData.coverColor !== undefined || updateData.coverImage !== undefined) {
+      // Generate activity if cover changed (and it wasn't just initialized to null)
+      if ((updateData.coverColor && updateData.coverColor !== originalCard.coverColor) || 
+          (updateData.coverImage && updateData.coverImage !== originalCard.coverImage)) {
+        await createActivity(card.id, `updated the cover`);
+      } else if (updateData.coverColor === null && updateData.coverImage === null && 
+                (originalCard.coverColor || originalCard.coverImage)) {
+        await createActivity(card.id, `removed the cover`);
+      }
     }
 
     res.json(card);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating card:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Card not found' });
     }
@@ -114,12 +100,15 @@ router.patch('/:id', async (req, res) => {
 
 // DELETE /api/cards/:id - delete card
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const id = parseInt(req.params.id);
-    await prisma.card.delete({ where: { id } });
-    res.status(204).send();
+    await prisma.card.delete({
+      where: { id: parseInt(id, 10) },
+    });
+    res.json({ message: 'Card deleted successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting card:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Card not found' });
     }
@@ -127,185 +116,177 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/cards/:id/labels - add label
+// LABELS
+
+// POST /api/cards/:id/labels - add label { labelId }
 router.post('/:id/labels', async (req, res) => {
+  const { id } = req.params;
+  const { labelId } = req.body;
+
+  if (!labelId) return res.status(400).json({ error: 'labelId is required' });
+
   try {
-    const cardId = parseInt(req.params.id);
-    const { labelId } = req.body;
-    if (!labelId) {
-      return res.status(400).json({ error: 'labelId is required' });
-    }
     const cardLabel = await prisma.cardLabel.create({
       data: {
-        cardId,
-        labelId: parseInt(labelId)
+        cardId: parseInt(id, 10),
+        labelId: parseInt(labelId, 10),
       },
       include: { label: true }
     });
-    // Activity
-    await createActivity(cardId, 1, `added label "${cardLabel.label.name}"`);
+
+    await createActivity(id, `added the label to this card`);
     res.status(201).json(cardLabel);
   } catch (error) {
-    console.error(error);
+    console.error('Error adding label to card:', error);
     res.status(500).json({ error: 'Failed to add label' });
   }
 });
 
 // DELETE /api/cards/:id/labels/:labelId - remove label
 router.delete('/:id/labels/:labelId', async (req, res) => {
+  const { id, labelId } = req.params;
+
   try {
-    const cardId = parseInt(req.params.id);
-    const labelId = parseInt(req.params.labelId);
-    const cardLabel = await prisma.cardLabel.findUnique({
-      where: { cardId_labelId: { cardId, labelId } },
-      include: { label: true }
-    });
-    if (!cardLabel) {
-      return res.status(404).json({ error: 'Label not found on card' });
-    }
     await prisma.cardLabel.delete({
-      where: { cardId_labelId: { cardId, labelId } }
+      where: {
+        cardId_labelId: {
+          cardId: parseInt(id, 10),
+          labelId: parseInt(labelId, 10),
+        }
+      }
     });
-    // Activity
-    await createActivity(cardId, 1, `removed label "${cardLabel.label.name}"`);
-    res.status(204).send();
+
+    await createActivity(id, `removed a label from this card`);
+    res.json({ message: 'Label removed successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error removing label from card:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Label not found on card' });
     res.status(500).json({ error: 'Failed to remove label' });
   }
 });
 
-// POST /api/cards/:id/members - assign member
+// MEMBERS
+
+// POST /api/cards/:id/members - assign member { userId }
 router.post('/:id/members', async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+
+  if (!userId) return res.status(400).json({ error: 'userId is required' });
+
   try {
-    const cardId = parseInt(req.params.id);
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
     const cardMember = await prisma.cardMember.create({
       data: {
-        cardId,
-        userId: parseInt(userId)
+        cardId: parseInt(id, 10),
+        userId: parseInt(userId, 10),
       },
       include: { user: true }
     });
-    // Activity
-    await createActivity(cardId, 1, `assigned ${cardMember.user.name}`);
+
+    await createActivity(id, `joined this card`);
     res.status(201).json(cardMember);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to assign member' });
+    console.error('Error adding member to card:', error);
+    res.status(500).json({ error: 'Failed to add member' });
   }
 });
 
 // DELETE /api/cards/:id/members/:userId - unassign member
 router.delete('/:id/members/:userId', async (req, res) => {
+  const { id, userId } = req.params;
+
   try {
-    const cardId = parseInt(req.params.id);
-    const userId = parseInt(req.params.userId);
-    const cardMember = await prisma.cardMember.findUnique({
-      where: { cardId_userId: { cardId, userId } },
-      include: { user: true }
-    });
-    if (!cardMember) {
-      return res.status(404).json({ error: 'Member not assigned' });
-    }
     await prisma.cardMember.delete({
-      where: { cardId_userId: { cardId, userId } }
+      where: {
+        cardId_userId: {
+          cardId: parseInt(id, 10),
+          userId: parseInt(userId, 10),
+        }
+      }
     });
-    // Activity
-    await createActivity(cardId, 1, `removed ${cardMember.user.name}`);
-    res.status(204).send();
+
+    await createActivity(id, `left this card`);
+    res.json({ message: 'Member removed successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to unassign member' });
+    console.error('Error removing member from card:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Member not found on card' });
+    res.status(500).json({ error: 'Failed to remove member' });
   }
 });
 
-// Checklist routes
-// POST /api/cards/:id/checklists - create checklist
+// CHECKLISTS
+
+// POST /api/cards/:id/checklists - create checklist { title }
 router.post('/:id/checklists', async (req, res) => {
+  const { id } = req.params;
+  const { title } = req.body;
+
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+
   try {
-    const cardId = parseInt(req.params.id);
-    const { title } = req.body;
-    if (!title) {
-      return res.status(400).json({ error: 'title is required' });
-    }
     const checklist = await prisma.checklist.create({
       data: {
         title,
-        cardId
-      }
+        cardId: parseInt(id, 10),
+      },
     });
+
+    await createActivity(id, `added ${title} to this card`);
     res.status(201).json(checklist);
   } catch (error) {
-    console.error(error);
+    console.error('Error creating checklist:', error);
     res.status(500).json({ error: 'Failed to create checklist' });
   }
 });
 
-// DELETE /api/checklists/:id - delete checklist
-router.delete('/checklists/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    await prisma.checklist.delete({ where: { id } });
-    res.status(204).send();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete checklist' });
-  }
-});
+// COMMENTS
 
-// POST /api/checklists/:id/items - add checklist item
-router.post('/checklists/:id/items', async (req, res) => {
+// POST /api/cards/:id/comments - add comment { text, userId }
+router.post('/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const { text, userId } = req.body;
+
+  if (!text) return res.status(400).json({ error: 'Text is required' });
+
   try {
-    const checklistId = parseInt(req.params.id);
-    const { text } = req.body;
-    if (!text) {
-      return res.status(400).json({ error: 'text is required' });
-    }
-    const item = await prisma.checklistItem.create({
+    const comment = await prisma.comment.create({
       data: {
         text,
-        checklistId
-      }
+        cardId: parseInt(id, 10),
+        userId: userId ? parseInt(userId, 10) : DEFAULT_USER_ID,
+      },
+      include: { user: true }
     });
-    res.status(201).json(item);
+    res.status(201).json(comment);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to add checklist item' });
+    console.error('Error adding comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
   }
 });
 
-// PATCH /api/checklist-items/:id - update checklist item
-router.patch('/checklist-items/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { text, isComplete } = req.body;
-    const data = {};
-    if (text !== undefined) data.text = text;
-    if (isComplete !== undefined) data.isComplete = isComplete;
-    const item = await prisma.checklistItem.update({
-      where: { id },
-      data
-    });
-    res.json(item);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to update checklist item' });
-  }
-});
+// ATTACHMENTS
 
-// DELETE /api/checklist-items/:id - delete checklist item
-router.delete('/checklist-items/:id', async (req, res) => {
+// POST /api/cards/:id/attachments - add attachment { name, url }
+router.post('/:id/attachments', async (req, res) => {
+  const { id } = req.params;
+  const { name, url } = req.body;
+
+  if (!name || !url) return res.status(400).json({ error: 'Name and URL are required' });
+
   try {
-    const id = parseInt(req.params.id);
-    await prisma.checklistItem.delete({ where: { id } });
-    res.status(204).send();
+    const attachment = await prisma.attachment.create({
+      data: {
+        name,
+        url,
+        cardId: parseInt(id, 10),
+      },
+    });
+
+    await createActivity(id, `attached ${name} to this card`);
+    res.status(201).json(attachment);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete checklist item' });
+    console.error('Error adding attachment:', error);
+    res.status(500).json({ error: 'Failed to add attachment' });
   }
 });
 

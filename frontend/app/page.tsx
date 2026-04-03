@@ -36,7 +36,7 @@ export default function MarketingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/signup" className="hidden md:block text-[15px] font-medium px-4 py-2 hover:bg-gray-100 rounded transition-colors">Log in</Link>
+              <Link href="/signin" className="hidden md:block text-[15px] font-medium px-4 py-2 hover:bg-gray-100 rounded transition-colors">Log in</Link>
               <Link href="/signup" className="bg-[#0D66E4] hover:bg-[#0052CC] text-white px-6 py-2.5 rounded text-[15px] font-medium transition-colors">
                 Get Trello for free
               </Link>

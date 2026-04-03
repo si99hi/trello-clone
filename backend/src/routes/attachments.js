@@ -1,37 +1,19 @@
 const express = require('express');
-const prisma = require('../lib/prisma');
 const router = express.Router();
-
-// POST /api/cards/:id/attachments - add attachment
-router.post('/cards/:id/attachments', async (req, res) => {
-  try {
-    const cardId = parseInt(req.params.id);
-    const { name, url } = req.body;
-    if (!name || !url) {
-      return res.status(400).json({ error: 'name and url are required' });
-    }
-    const attachment = await prisma.attachment.create({
-      data: {
-        name,
-        url,
-        cardId
-      }
-    });
-    res.status(201).json(attachment);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to add attachment' });
-  }
-});
+const prisma = require('../lib/prisma');
 
 // DELETE /api/attachments/:id - delete attachment
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const id = parseInt(req.params.id);
-    await prisma.attachment.delete({ where: { id } });
-    res.status(204).send();
+    await prisma.attachment.delete({
+      where: { id: parseInt(id, 10) },
+    });
+    res.json({ message: 'Attachment deleted successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting attachment:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Attachment not found' });
     res.status(500).json({ error: 'Failed to delete attachment' });
   }
 });

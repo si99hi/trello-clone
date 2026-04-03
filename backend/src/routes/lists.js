@@ -1,40 +1,50 @@
 const express = require('express');
-const prisma = require('../lib/prisma');
 const router = express.Router();
+const prisma = require('../lib/prisma');
 
-// POST /api/lists - create a list
+// POST /api/lists - create list { boardId, title, position }
 router.post('/', async (req, res) => {
+  const { boardId, title, position } = req.body;
+  
+  if (!boardId || !title || typeof position !== 'number') {
+    return res.status(400).json({ error: 'boardId, title, and position are required' });
+  }
+
   try {
-    const { boardId, title, position } = req.body;
-    if (!boardId || !title) {
-      return res.status(400).json({ error: 'boardId and title are required' });
-    }
     const list = await prisma.list.create({
       data: {
-        boardId: parseInt(boardId),
         title,
-        position: position || 0
+        position,
+        boardId: parseInt(boardId, 10),
+      },
+      include: {
+        cards: true
       }
     });
     res.status(201).json(list);
   } catch (error) {
-    console.error(error);
+    console.error('Error creating list:', error);
     res.status(500).json({ error: 'Failed to create list' });
   }
 });
 
-// PATCH /api/lists/:id - update list (title, position)
+// PATCH /api/lists/:id - update title or position
 router.patch('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, position } = req.body;
+
   try {
-    const id = parseInt(req.params.id);
-    const { title, position } = req.body;
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (position !== undefined) updateData.position = position;
+
     const list = await prisma.list.update({
-      where: { id },
-      data: { title, position }
+      where: { id: parseInt(id, 10) },
+      data: updateData,
     });
     res.json(list);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating list:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'List not found' });
     }
@@ -44,12 +54,15 @@ router.patch('/:id', async (req, res) => {
 
 // DELETE /api/lists/:id - delete list (cascade)
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const id = parseInt(req.params.id);
-    await prisma.list.delete({ where: { id } });
-    res.status(204).send();
+    await prisma.list.delete({
+      where: { id: parseInt(id, 10) },
+    });
+    res.json({ message: 'List deleted successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting list:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'List not found' });
     }

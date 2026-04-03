@@ -7,11 +7,27 @@ const usersRouter = require('./routes/users');
 const labelsRouter = require('./routes/labels');
 const commentsRouter = require('./routes/comments');
 const attachmentsRouter = require('./routes/attachments');
+const checklistsRouter = require('./routes/checklists');
+const checklistItemsRouter = require('./routes/checklistItems');
 
 const app = express();
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000'
+  origin(origin, callback) {
+    // Allow non-browser requests and configured local frontend URLs.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  }
 }));
 app.use(express.json());
 
@@ -26,6 +42,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/labels', labelsRouter);
 app.use('/api/comments', commentsRouter);
 app.use('/api/attachments', attachmentsRouter);
+app.use('/api/checklists', checklistsRouter);
+app.use('/api/checklist-items', checklistItemsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

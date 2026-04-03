@@ -1,57 +1,39 @@
 const express = require('express');
-const prisma = require('../lib/prisma');
 const router = express.Router();
+const prisma = require('../lib/prisma');
 
-// POST /api/cards/:id/comments - add comment
-router.post('/cards/:id/comments', async (req, res) => {
-  try {
-    const cardId = parseInt(req.params.id);
-    const { text, userId } = req.body;
-    if (!text || !userId) {
-      return res.status(400).json({ error: 'text and userId are required' });
-    }
-    const comment = await prisma.comment.create({
-      data: {
-        text,
-        cardId,
-        userId: parseInt(userId)
-      },
-      include: { user: true }
-    });
-    res.status(201).json(comment);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to add comment' });
-  }
-});
-
-// PATCH /api/comments/:id - edit comment
+// PATCH /api/comments/:id - edit comment { text }
 router.patch('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+
+  if (!text) return res.status(400).json({ error: 'Text is required' });
+
   try {
-    const id = parseInt(req.params.id);
-    const { text } = req.body;
-    if (!text) {
-      return res.status(400).json({ error: 'text is required' });
-    }
     const comment = await prisma.comment.update({
-      where: { id },
-      data: { text }
+      where: { id: parseInt(id, 10) },
+      data: { text },
     });
     res.json(comment);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating comment:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Comment not found' });
     res.status(500).json({ error: 'Failed to update comment' });
   }
 });
 
 // DELETE /api/comments/:id - delete comment
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const id = parseInt(req.params.id);
-    await prisma.comment.delete({ where: { id } });
-    res.status(204).send();
+    await prisma.comment.delete({
+      where: { id: parseInt(id, 10) },
+    });
+    res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting comment:', error);
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Comment not found' });
     res.status(500).json({ error: 'Failed to delete comment' });
   }
 });

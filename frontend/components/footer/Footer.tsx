@@ -15,7 +15,7 @@ export default function Footer() {
                         </svg>
                         <span className="text-2xl font-bold tracking-tight text-white leading-none">Trello</span>
                     </div>
-                    <Link href="/signup" className="text-white hover:underline text-lg font-medium">Log In</Link>
+                    <Link href="/signin" className="text-white hover:underline text-lg font-medium">Log In</Link>
                 </div>
 
                 <div>
