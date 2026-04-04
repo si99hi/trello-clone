@@ -13,6 +13,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD,
   },
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 10000,
 });
 
 async function sendOtpEmailSafe({ to, subject, html, devLog }) {
@@ -56,17 +59,21 @@ router.post('/start', async (req, res) => {
       create: { email, otp, expiresAt },
     });
 
-    await sendOtpEmailSafe({
+    // Respond immediately — do NOT block the client on SMTP
+    res.json({ exists: false, message: 'OTP sent to email.' });
+
+    // Send email in background (fire-and-forget)
+    sendOtpEmailSafe({
       to: email,
       subject: 'Your Trello Clone Verification Code',
       html: `<p>Your verification code is: <strong>${otp}</strong>.</p><p>It will expire in 10 minutes.</p>`,
       devLog: `[DEV MODE] OTP for ${email}: ${otp}`,
     });
-
-    return res.json({ exists: false, message: 'OTP sent to email.' });
   } catch (error) {
     console.error('Start Auth Error:', error);
-    return res.status(500).json({ error: 'Failed to process request' });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to process request' });
+    }
   }
 });
 
@@ -144,17 +151,21 @@ router.post('/forgot-password', async (req, res) => {
       create: { email, otp, expiresAt },
     });
 
-    await sendOtpEmailSafe({
+    // Respond immediately — do NOT block the client on SMTP
+    res.json({ message: 'Password reset OTP sent to email.' });
+
+    // Send email in background (fire-and-forget)
+    sendOtpEmailSafe({
       to: email,
       subject: 'Password reset code',
       html: `<p>Your password reset code is: <strong>${otp}</strong>.</p><p>It will expire in 10 minutes.</p>`,
       devLog: `[DEV MODE] Password reset OTP for ${email}: ${otp}`,
     });
-
-    return res.json({ message: 'Password reset OTP sent to email.' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
-    return res.status(500).json({ error: 'Failed to send reset OTP' });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to send reset OTP' });
+    }
   }
 });
 
