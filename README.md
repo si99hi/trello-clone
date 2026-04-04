@@ -5,6 +5,20 @@ Taskflow is a production-ready Kanban-style project management web application, 
 [![Deploy](https://vercel.com/button)](https://vercel.com/new)  
 *(Deployment placeholder)*
 
+## 📸 Screenshots
+
+![Screenshot 1](assets/images/Screenshot%202026-04-03%20163012.png)
+
+![Screenshot 2](assets/images/Screenshot%202026-04-03%20165148.png)
+
+![Screenshot 3](assets/images/Screenshot%202026-04-03%20170928.png)
+
+![Screenshot 4](assets/images/Screenshot%202026-04-03%20173134.png)
+
+![Screenshot 5](assets/images/Screenshot%202026-04-03%20173148.png)
+
+![Screenshot 6](assets/images/Screenshot%202026-04-03%20173157.png)
+
 ## Features
 - **Boards, Lists, and Cards**: Create infinite nested structures.
 - **Drag and Drop Interface**: Reorder lists horizontally and cards vertically across columns using `@dnd-kit`.
