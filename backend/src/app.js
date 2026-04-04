@@ -20,15 +20,22 @@ const allowedOrigins = [
   'http://127.0.0.1:3001',
 ].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin(origin, callback) {
-    // Allow non-browser requests and configured local frontend URLs.
+    // Allow non-browser requests (e.g. curl, server-to-server) and whitelisted origins.
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     return callback(new Error(`CORS blocked for origin: ${origin}`));
-  }
-}));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Handle preflight OPTIONS requests for all routes.
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const authRouter = require('./routes/auth');
