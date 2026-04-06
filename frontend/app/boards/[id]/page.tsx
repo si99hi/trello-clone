@@ -101,19 +101,32 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     // Moving a card over another card
     if (isActiveACard && isOverACard) {
       setLists((prevLists) => {
-         const activeListId = active.data.current?.card.listId;
-         const overListId = over.data.current?.card.listId;
+         let activeListIndex = -1;
+         let activeCardIndex = -1;
+         for (let i = 0; i < prevLists.length; i++) {
+            const idx = prevLists[i].cards?.findIndex(c => c.id === activeId) ?? -1;
+            if (idx !== -1) {
+               activeListIndex = i;
+               activeCardIndex = idx;
+               break;
+            }
+         }
 
-         const activeListIndex = prevLists.findIndex((l) => l.id === activeListId);
-         const overListIndex = prevLists.findIndex((l) => l.id === overListId);
+         let overListIndex = -1;
+         let overCardIndex = -1;
+         for (let i = 0; i < prevLists.length; i++) {
+            const idx = prevLists[i].cards?.findIndex(c => c.id === overId) ?? -1;
+            if (idx !== -1) {
+               overListIndex = i;
+               overCardIndex = idx;
+               break;
+            }
+         }
 
          if (activeListIndex === -1 || overListIndex === -1) return prevLists;
 
-         if (activeListId === overListId) {
+         if (activeListIndex === overListIndex) {
             // Same list
-            const activeCardIndex = prevLists[activeListIndex].cards!.findIndex((c) => c.id === activeId);
-            const overCardIndex = prevLists[overListIndex].cards!.findIndex((c) => c.id === overId);
-
             const newLists = [...prevLists];
             newLists[activeListIndex] = {
                ...newLists[activeListIndex],
@@ -123,20 +136,17 @@ export default function BoardPage({ params }: { params: { id: string } }) {
          }
 
          // Different list
-         const activeCardIndex = prevLists[activeListIndex].cards!.findIndex((c) => c.id === activeId);
-         const overCardIndex = prevLists[overListIndex].cards!.findIndex((c) => c.id === overId);
-         
          const newLists = [...prevLists];
          const activeCardToMove = newLists[activeListIndex].cards![activeCardIndex];
-         activeCardToMove.listId = overListId;
+         const cardObjToMove = { ...activeCardToMove, listId: newLists[overListIndex].id };
          
          newLists[activeListIndex] = {
             ...newLists[activeListIndex],
             cards: newLists[activeListIndex].cards!.filter((c) => c.id !== activeId)
          };
          
-         const newOverCards = [...newLists[overListIndex].cards!];
-         newOverCards.splice(overCardIndex, 0, activeCardToMove);
+         const newOverCards = [...(newLists[overListIndex].cards || [])];
+         newOverCards.splice(overCardIndex, 0, cardObjToMove);
          
          newLists[overListIndex] = {
             ...newLists[overListIndex],
@@ -150,20 +160,26 @@ export default function BoardPage({ params }: { params: { id: string } }) {
     // Moving a card over a list column
     if (isActiveACard && isOverAList) {
         setLists((prevLists) => {
-            const activeListId = active.data.current?.card.listId;
-            const overListId = over.data.current?.list.id;
-            
-            if (activeListId === overListId) return prevLists;
+            let activeListIndex = -1;
+            let activeCardIndex = -1;
+            for (let i = 0; i < prevLists.length; i++) {
+               const idx = prevLists[i].cards?.findIndex(c => c.id === activeId) ?? -1;
+               if (idx !== -1) {
+                  activeListIndex = i;
+                  activeCardIndex = idx;
+                  break;
+               }
+            }
 
-            const activeListIndex = prevLists.findIndex((l) => l.id === activeListId);
+            const overListId = over.data.current?.list?.id;
             const overListIndex = prevLists.findIndex((l) => l.id === overListId);
 
             if (activeListIndex === -1 || overListIndex === -1) return prevLists;
+            if (activeListIndex === overListIndex) return prevLists;
 
-            const activeCardIndex = prevLists[activeListIndex].cards!.findIndex((c) => c.id === activeId);
             const newLists = [...prevLists];
             const activeCardToMove = newLists[activeListIndex].cards![activeCardIndex];
-            activeCardToMove.listId = overListId;
+            const cardObjToMove = { ...activeCardToMove, listId: overListId };
 
             newLists[activeListIndex] = {
                ...newLists[activeListIndex],
@@ -172,7 +188,7 @@ export default function BoardPage({ params }: { params: { id: string } }) {
             
             newLists[overListIndex] = {
                ...newLists[overListIndex],
-               cards: [...newLists[overListIndex].cards!, activeCardToMove]
+               cards: [...(newLists[overListIndex].cards || []), cardObjToMove]
             };
 
             return newLists;
