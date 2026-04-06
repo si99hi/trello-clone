@@ -104,7 +104,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     title: 'Learn A Language',
     subtitle: 'Track daily study and progress',
     category: 'Education',
-    image: '/images/templates/education-language-board.png',
+    image: '/images/templates/duolingo-owls.jpg',
     bgColor: '#8E44AD',
     lists: [
       { title: 'To Do', cards: ['Pick a language to learn', 'Set daily study time'] },
