@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { api, Board, List, Card } from '@/lib/api';
 import Navbar from '@/components/navbar/Navbar';
 import ListColumn from '@/components/board/ListColumn';
-import AddListForm from '@/components/board/AddListForm';
+import AddListForm from '../../../components/board/AddListForm';
 import {
   DndContext,
   closestCenter,
