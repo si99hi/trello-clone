@@ -102,4 +102,4 @@ The REST API sits at `/api/*` and supports wide CRUD features. Notable endpoints
 - The UI mimics Trello's Dark Theme explicitly based on hex specifications in the task.
 
 ---
-Built with ❤️ using React and Node.
+
